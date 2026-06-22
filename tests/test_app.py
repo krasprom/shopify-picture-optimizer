@@ -16,7 +16,7 @@ def test_fetch_image_disables_verify_only_for_admin2(monkeypatch):
         content = b"bytes"
         def raise_for_status(self): pass
     monkeypatch.setattr(app_module.requests, "get",
-                        lambda url, timeout, verify: (captured.update(verify=verify), FakeResp())[1])
+                        lambda url, timeout, verify, headers: (captured.update(verify=verify), FakeResp())[1])
     app_module.fetch_image("https://admin2.hardware-best.de/x.jpg")
     assert captured["verify"] is False
     app_module.fetch_image("https://cdn.shopify.com/x.jpg")

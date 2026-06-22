@@ -16,6 +16,8 @@ MODEL_NAME = os.environ.get("OPTIMIZER_MODEL", "isnet-general-use")
 # Хосты с самоподписанным сертификатом — проверку TLS отключаем ТОЛЬКО для них.
 INSECURE_HOSTS = {"admin2.hardware-best.de", "admin2.sofortverkaufen.de"}
 DOWNLOAD_TIMEOUT = 20
+# Некоторые источники (например Wikimedia) отдают 403 на дефолтный UA requests.
+DOWNLOAD_HEADERS = {"User-Agent": "shopify-picture-optimizer/1.0 (+https://github.com/krasprom/shopify-picture-optimizer)"}
 
 _CONTENT_TYPE = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
                  "png": "image/png", "webp": "image/webp"}
@@ -49,7 +51,7 @@ def _cache_key(req: "OptimizeRequest") -> str:
 def fetch_image(url: str) -> bytes:
     host = urlparse(url).hostname or ""
     verify = host not in INSECURE_HOSTS
-    resp = requests.get(url, timeout=DOWNLOAD_TIMEOUT, verify=verify)
+    resp = requests.get(url, timeout=DOWNLOAD_TIMEOUT, verify=verify, headers=DOWNLOAD_HEADERS)
     resp.raise_for_status()
     return resp.content
 
