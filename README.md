@@ -68,6 +68,50 @@ python3 optimize.py --help
 Input: `.webp`, `.jpg`, `.jpeg`, `.png` (extension case is ignored).
 Output: `webp` / `jpg` / `png` (via the `--format` flag).
 
+## Run as an HTTP service
+
+The optimizer also runs as a long-lived FastAPI service (`app.py`) bound to
+`127.0.0.1:8077`. It downloads a source image by URL, optimizes it in memory,
+caches the result on disk, and returns the raw image bytes.
+
+Start it locally:
+
+```bash
+uvicorn app:app --host 127.0.0.1 --port 8077 --workers 1
+```
+
+On first request the `rembg` model (~170 MB) is downloaded and loaded into
+memory; it is reused for all subsequent requests.
+
+### Endpoints
+
+- `POST /optimize` — body `{"url": "<str>", "size": 1500, "padding": 0.08, "format": "jpg"}`
+  (`size`/`padding`/`format` optional, defaults `1500 / 0.08 / jpg`). On success
+  returns the **raw optimized image bytes** with `Content-Type: image/jpeg`
+  (or `image/png` / `image/webp`), plus `X-Cache: hit|miss` and
+  `X-Object-Detected: true|false|unknown` headers. Download error → HTTP 502
+  JSON `{"error": "..."}`; optimization error → HTTP 500 JSON `{"error": "..."}`.
+- `GET /health` — HTTP 200 JSON `{"status": "ok", "model": "<model name>"}`.
+
+Configuration via environment variables: `OPTIMIZER_CACHE_DIR`
+(default `/var/cache/shopify-optimizer`), `OPTIMIZER_MODEL`
+(default `isnet-general-use`).
+
+### Deploy as a systemd service
+
+```bash
+git clone https://github.com/krasprom/shopify-picture-optimizer.git /opt/shopify-optimizer
+cd /opt/shopify-optimizer
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
+mkdir -p /var/cache/shopify-optimizer
+cp deploy/shopify-optimizer.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now shopify-optimizer
+curl -s http://127.0.0.1:8077/health
+```
+
 ## Tests
 
 ```bash
@@ -78,9 +122,11 @@ python3 -m pytest tests/ -v
 
 ```
 picture-optimizer/
-├── optimize.py          # CLI and processing pipeline
+├── optimize.py          # CLI and processing pipeline + in-memory optimize_bytes()
+├── app.py               # FastAPI HTTP service (/optimize, /health)
+├── deploy/              # systemd unit
 ├── requirements.txt     # dependencies
-├── tests/               # unit tests for geometry and processing
+├── tests/               # unit tests for geometry, optimize_bytes and the service
 ├── pictures/            # input (not modified)
 ├── output/              # output (created on run)
 └── docs/superpowers/    # spec and implementation plan

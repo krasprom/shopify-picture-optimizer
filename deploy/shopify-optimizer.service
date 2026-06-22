@@ -1,0 +1,15 @@
+[Unit]
+Description=Shopify Picture Optimizer (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/shopify-optimizer
+Environment=OPTIMIZER_CACHE_DIR=/var/cache/shopify-optimizer
+ExecStart=/opt/shopify-optimizer/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8077 --workers 1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
