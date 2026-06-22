@@ -1,0 +1,6 @@
+Pillow>=10.0
+numpy>=1.24
+scipy>=1.10
+rembg>=2.0
+onnxruntime>=1.16
+pytest>=7.0
