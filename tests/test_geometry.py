@@ -154,14 +154,15 @@ def test_process_image_saves_output(tmp_path, monkeypatch):
         assert saved.size == (1200, 1200)
 
 
-def test_process_image_returns_none_for_non_image(tmp_path):
+def test_process_image_raises_for_non_image(tmp_path):
+    # process_image не глотает ошибки чтения: битый файл бросает исключение.
     bad = tmp_path / "broken.png"
     bad.write_bytes(b"not an image")
     out_dir = tmp_path / "out"
-    result = optimize.process_image(
-        bad, out_dir, session=None, size=1200, padding=0.08, fmt="webp"
-    )
-    assert result is None
+    with pytest.raises(Exception):
+        optimize.process_image(
+            bad, out_dir, session=None, size=1200, padding=0.08, fmt="webp"
+        )
 
 
 def test_main_rejects_size_out_of_range():
