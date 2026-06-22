@@ -1,99 +1,97 @@
 # Picture Optimizer
 
-Оптимайзер фотографий товаров для веб-шопа. Берёт картинки из папки, выделяет
-центральный объект, ставит чисто белый фон, центрирует объект и приводит
-изображение к квадрату фиксированного размера.
+Product photo optimizer for web shops. Takes images from a folder, isolates the
+central object, places it on a pure white background, centers it, and produces a
+square image of a fixed size.
 
-## Что делает
+## What it does
 
-Для каждой картинки из входной папки:
+For every image in the input folder:
 
-1. Выделяет объект нейросетью (`rembg`).
-2. Бинаризует и заливает дыры маски — фон становится чисто белым `#FFFFFF`.
-3. Кадрирует по объекту, центрирует его и добавляет равномерный отступ.
-4. Приводит к квадрату (по умолчанию 1500×1500) и сохраняет в `output/`.
+1. Isolates the object with a neural network (`rembg`).
+2. Binarizes and fills holes in the mask — the background becomes pure white `#FFFFFF`.
+3. Crops to the object, centers it, and adds an even padding margin.
+4. Fits it into a square (1500×1500 by default) and saves it to `output/`.
 
-Исходники в `pictures/` не изменяются.
+Source files in `pictures/` are never modified.
 
-## Установка
+## Installation
 
-Требуется Python 3.10+.
+Requires Python 3.10+.
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-При первом запуске `rembg` автоматически скачает модель (~170 МБ).
+On first run, `rembg` automatically downloads the model (~170 MB).
 
-## Использование
+## Usage
 
-Обработать все картинки из `pictures/` в `output/` со значениями по умолчанию:
+Process all images from `pictures/` into `output/` with default settings:
 
 ```bash
 python3 optimize.py
 ```
 
-Примеры с параметрами:
+Examples with parameters:
 
 ```bash
-# Другая папка вход/выход
-python3 optimize.py --input ./фото --output ./готово
+# Custom input/output folders
+python3 optimize.py --input ./photos --output ./ready
 
-# Размер 1800, формат JPG, отступ 5%
+# Size 1800, JPG format, 5% padding
 python3 optimize.py --size 1800 --format jpg --padding 0.05
 
-# Переключить модель сегментации
+# Switch the segmentation model
 python3 optimize.py --model u2net
 ```
 
-## Параметры
+## Parameters
 
-| Параметр     | По умолчанию        | Описание                                                                 |
+| Parameter    | Default             | Description                                                              |
 |--------------|---------------------|--------------------------------------------------------------------------|
-| `--input`    | `pictures`          | Папка с исходными картинками.                                             |
-| `--output`   | `output`            | Папка для результата (создаётся автоматически).                           |
-| `--size`     | `1500`              | Сторона итогового квадрата в пикселях. Допустимо `1200`–`1800`.           |
-| `--padding`  | `0.08`              | Доля белого поля с каждой стороны (0.08 = 8%).                            |
-| `--format`   | `webp`              | Формат вывода: `webp`, `jpg` или `png`.                                   |
-| `--model`    | `isnet-general-use` | Модель `rembg`. Альтернатива: `u2net`. `isnet` точнее на сложных кадрах.  |
+| `--input`    | `pictures`          | Folder with source images.                                               |
+| `--output`   | `output`            | Output folder (created automatically).                                   |
+| `--size`     | `1500`              | Side of the output square, in pixels. Allowed range: `1200`–`1800`.      |
+| `--padding`  | `0.08`              | White margin fraction on each side (0.08 = 8%).                          |
+| `--format`   | `webp`              | Output format: `webp`, `jpg`, or `png`.                                  |
+| `--model`    | `isnet-general-use` | `rembg` model. Alternative: `u2net`. `isnet` is more accurate on hard shots. |
 
-Справка по параметрам:
+Parameter help:
 
 ```bash
 python3 optimize.py --help
 ```
 
-## Поддерживаемые форматы
+## Supported formats
 
-Вход: `.webp`, `.jpg`, `.jpeg`, `.png` (регистр расширения не важен).
-Выход: `webp` / `jpg` / `png` (флаг `--format`).
+Input: `.webp`, `.jpg`, `.jpeg`, `.png` (extension case is ignored).
+Output: `webp` / `jpg` / `png` (via the `--format` flag).
 
-## Тесты
+## Tests
 
 ```bash
 python3 -m pytest tests/ -v
 ```
 
-## Структура проекта
+## Project structure
 
 ```
 picture-optimizer/
-├── optimize.py          # CLI и конвейер обработки
-├── requirements.txt     # зависимости
-├── tests/               # юнит-тесты геометрии и обработки
-├── pictures/            # вход (не изменяется)
-├── output/              # результат (создаётся при запуске)
-└── docs/superpowers/    # спека и план реализации
+├── optimize.py          # CLI and processing pipeline
+├── requirements.txt     # dependencies
+├── tests/               # unit tests for geometry and processing
+├── pictures/            # input (not modified)
+├── output/              # output (created on run)
+└── docs/superpowers/    # spec and implementation plan
 ```
 
-## Примечания
+## Notes
 
-- Размер квадрата валидируется: значение вне диапазона `1200`–`1800`
-  завершает запуск с ошибкой аргументов.
-- Если объект на фото не найден, картинка целиком вписывается в белый квадрат
-  (fallback), запуск не прерывается.
-- Битый или нечитаемый файл пропускается с предупреждением — остальные
-  обрабатываются.
-- Модель `rembg` загружается один раз за запуск и переиспользуется для всех
-  файлов батча.
-```
+- The square size is validated: a value outside the `1200`–`1800` range
+  aborts the run with an argument error.
+- If no object is found in a photo, the whole image is fitted into a white
+  square (fallback); the run is not interrupted.
+- A corrupt or unreadable file is skipped with a warning — the rest are still
+  processed.
+- The `rembg` model is loaded once per run and reused for all files in the batch.
