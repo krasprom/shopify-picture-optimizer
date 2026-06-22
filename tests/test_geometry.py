@@ -63,20 +63,43 @@ def test_padding_controls_object_fraction():
     assert abs(fraction - 0.8) <= 0.01  # объект занимает ~80% стороны
 
 
-def test_background_is_pure_white_when_source_bg_is_colored():
-    # Исходный фон серый, объект в центре; вне маски всё должно стать чисто белым.
+def test_background_inside_bbox_is_preserved_not_whitened():
+    # Фон НЕ вырезается: исходные пиксели внутри bbox объекта сохраняются.
+    # Маска неточная (уже самого объекта) — но обрезка идёт по bbox исходника,
+    # поэтому часть объекта/фона рядом не теряется и не белится.
     canvas = 400
-    img = Image.new("RGBA", (canvas, canvas), (130, 125, 115, 255))  # серый фон
+    bg = (130, 125, 115)
+    img = Image.new("RGBA", (canvas, canvas), (*bg, 255))  # цветной фон
     mask = Image.new("L", (canvas, canvas), 0)
+    # Объект — красный квадрат 150..250; маска покрывает только его центр 180..220.
     for x in range(150, 250):
         for y in range(150, 250):
-            img.putpixel((x, y), (0, 0, 0, 255))
+            img.putpixel((x, y), (200, 30, 30, 255))
+    for x in range(180, 220):
+        for y in range(180, 220):
             mask.putpixel((x, y), 255)
     out = compose_square(img, mask, padding=0.08)
-    # Угол результата (бывший серый фон) — чисто белый.
+    # Внутри bbox (по маске 180..220) красные пиксели объекта сохранены — не побелены.
+    assert out.getpixel((out.width // 2, out.height // 2)) == (200, 30, 30)
+    # Углы квадрата — белая рамка-padding (вне исходного кропа).
     assert out.getpixel((0, 0)) == (255, 255, 255)
-    # Пиксель внутри объекта остаётся объектом.
-    assert out.getpixel((out.width // 2, out.height // 2)) == (0, 0, 0)
+
+
+def test_compose_square_does_not_whiten_pixels_outside_mask_inside_bbox():
+    # Ключевая гарантия фикса: пиксель, который НЕ в маске, но попадает в bbox,
+    # остаётся оригинальным (раньше он белился наложением на белый фон).
+    canvas = 200
+    img = Image.new("RGB", (canvas, canvas), (40, 90, 160))  # синий «фон-товар»
+    mask = Image.new("L", (canvas, canvas), 0)
+    # L-образная маска: объект в углу bbox, противоположный угол bbox — вне маски.
+    for x in range(50, 150):
+        mask.putpixel((x, 50), 255)
+    for y in range(50, 150):
+        mask.putpixel((50, y), 255)
+    # bbox маски = (50,50)-(150,150). Точка (149,149) внутри bbox, но вне маски.
+    out = compose_square(img, mask, padding=0.0)
+    # Эта точка должна сохранить исходный синий, а не стать белой.
+    assert (149 - 50, 149 - 50) and out.getpixel((149 - 50, 149 - 50)) == (40, 90, 160)
 
 
 def test_harden_mask_binarizes_around_threshold():
