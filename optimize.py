@@ -1,6 +1,7 @@
 """Оптимайзер картинок для веб-шопа: центрирование объекта на белом квадрате."""
 
 import argparse
+import io
 from pathlib import Path
 
 import numpy as np
@@ -96,21 +97,31 @@ def fill_mask_holes(mask):
     return Image.fromarray((filled * 255).astype(np.uint8), mode="L")
 
 
+def optimize_bytes(data: bytes, size: int, padding: float, fmt: str, session):
+    """Оптимизирует картинку в памяти. Возвращает (bytes, object_detected: bool)."""
+    img = Image.open(io.BytesIO(data))
+    mask = segment(img, session)
+    mask = harden_mask(mask)
+    mask = fill_mask_holes(mask)
+    detected = _object_bbox(mask) is not None
+    square = make_square_on_white(img, mask, size, padding)
+
+    pil_fmt = _PIL_FORMAT.get(fmt.lower(), "JPEG")
+    save_kwargs = {}
+    if pil_fmt == "JPEG":
+        square = square.convert("RGB")
+        save_kwargs = {"quality": 90}
+    buf = io.BytesIO()
+    square.save(buf, format=pil_fmt, **save_kwargs)
+    return buf.getvalue(), detected
+
+
 def process_image(path, out_dir, session, size, padding, fmt):
-    """Обрабатывает один файл; возвращает путь результата или None при ошибке чтения."""
-    try:
-        with Image.open(path) as opened:
-            img = opened.convert("RGBA")
-    except Exception as exc:  # битый файл / не картинка
-        print(f"  ! пропуск {path.name}: не удалось открыть ({exc})")
-        return None
-
-    mask = fill_mask_holes(harden_mask(segment(img, session)))
-    square = make_square_on_white(img, mask, size=size, padding=padding)
-
+    data = path.read_bytes()
+    out, _ = optimize_bytes(data, size, padding, fmt, session)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{path.stem}.{fmt}"
-    square.save(out_path, _PIL_FORMAT[fmt])
+    out_path.write_bytes(out)
     return out_path
 
 
